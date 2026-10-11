@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+.env*
+dist/data.js
+dist/planner-data.js
+dist/data/
+dist/cartographer/data.js
+dist/cartographer/planner-data.js
+dist/cartographer/prominence.js
+dist/cartographer/basemap.js
+dist/cartographer/data/

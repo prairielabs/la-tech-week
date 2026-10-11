@@ -1,0 +1,19 @@
+/* Deterministic day alternatives, using published times and explicit choices. */
+(function(root){
+'use strict';const M=60000;
+const goals={build:{label:'Build something',terms:['AI','Developer','Infrastructure','Deep Tech'],formats:['Workshop','Hackathon','Demo']},capital:{label:'Meet the capital',terms:['Fundraising','Investing'],formats:['Networking','Roundtable']},creative:{label:'See what comes next',terms:['Creators','Media','Entertainment','Gaming','Design'],formats:['Experiential','Demo']},connection:{label:'Find your people',terms:[],formats:['Networking','Happy Hour','Breakfast','Party']}};
+const stamp=e=>Date.parse(e.startsAt),finish=e=>Date.parse(e.endsAt);
+function signals(e,goal){const g=goals[goal]||goals.build;return [...(e.themes||[]).filter(t=>g.terms.some(q=>q==='AI'?t==='AI':t.toLowerCase().includes(q.toLowerCase()))),...(e.formats||[]).filter(t=>g.formats.some(q=>t.toLowerCase().includes(q.toLowerCase())))];}
+function gap(a,b,setting){if(setting!=='flexible')return Number(setting);const sameAddress=a.publicAddress?.length&&a.publicAddress.join()===b.publicAddress?.join();if(sameAddress&&a.geocode&&b.geocode)return 10;return a.municipality===b.municipality?30:60;}
+function search(events,o={}){const days=o.days??(o.day?[o.day]:Array.from({length:7},(_,i)=>`2026-10-${12+i}`)),from=Number(o.from??9),to=Number(o.to??22),spacing=o.buffer??'flexible';
+if(!days.length)return {routes:[],eligible:0,reason:'Select at least one day.'};
+if(!Array.isArray(days)||days.some(d=>!/^2026-10-1[2-8]$/.test(d))||![from,to].every(Number.isFinite)||from<0||to>24||from>=to||!(spacing==='flexible'||Number.isFinite(Number(spacing))&&Number(spacing)>=0&&Number(spacing)<=240))return {routes:[],eligible:0,reason:'Choose a valid time window and spacing.'};
+let candidates=[],eligible=0;
+for(const day of [...new Set(days)]){const midnight=Date.parse(day+'T00:00:00-07:00');const pool=events.filter(e=>e.date===day&&e.endDate===day&&e.endsAt&&finish(e)>stamp(e)&&stamp(e)>=midnight+from*60*M&&finish(e)<=midnight+to*60*M&&e.registration!=='closed'&&e.municipality!=='Unknown'&&(!o.municipality||e.municipality===o.municipality)&&(!o.neighborhood||e.areas.includes(o.neighborhood))).sort((a,b)=>stamp(a)-stamp(b)||a.id.localeCompare(b.id));eligible+=pool.length;
+// Time bounds determine the number of stops. Keep a bounded beam of alternatives.
+let beam=[{events:[],score:0}];for(const e of pool){const additions=[];for(const p of beam){const prev=p.events.at(-1);if(prev&&stamp(e)<finish(prev)+gap(prev,e,spacing)*M)continue;const score=p.score+100+signals(e,o.goal).length*12;additions.push({events:[...p.events,e],score});}beam=[...beam,...additions].sort((a,b)=>b.score-a.score||a.events.map(x=>x.id).join().localeCompare(b.events.map(x=>x.id).join())).slice(0,120);}
+for(const p of beam.filter(p=>p.events.length)){const municipalities=[...new Set(p.events.map(e=>e.municipality))];candidates.push({...p,day,area:municipalities.join(' → '),buffer:spacing,matched:p.events.filter(e=>signals(e,o.goal).length).length,start:stamp(p.events[0]),end:finish(p.events.at(-1))});}}
+candidates.sort((a,b)=>b.score-a.score||a.day.localeCompare(b.day));const routes=[],seen=new Set();for(const p of candidates){const key=p.events.map(e=>e.id).join();if(seen.has(key))continue;seen.add(key);if(routes.some(r=>p.events.every(e=>r.events.some(x=>x.id===e.id))))continue;routes.push(p);if(routes.length===3)break;}
+return {routes,eligible,reason:eligible?'':'No events with published end times fit. Try more days, a wider time window or a different municipality.'};}
+const api={goals,signals,gap,search};if(typeof module!=='undefined')module.exports=api;else root.FieldtripRoutes=api;
+})(typeof window!=='undefined'?window:globalThis);
