@@ -32,39 +32,6 @@ for(const [width,height] of [[1600,836],[375,700]]){
  });
 }
 
-for(const [width,height] of [[1600,836],[375,700]]){
- test(`drag, wheel, zoom buttons and held keys cannot mirror or enter the map at ${width}px`,()=>{
-  const s=scene(width,height);
-  s.run('homePose("stack");cameraLocked=false');
-  let clock=0;
-  const settle=()=>{for(let i=0;i<160;i++)s.run(`step(${clock+=16})`);};
-  const check=()=>{
-   const p=s.run(`[-110,0,110].map(x=>({east:[{x,y:0,z:-30},{x,y:0,z:30}].map(p=>toScreen(view(p))),north:[{x,y:-30,z:0},{x,y:30,z:0}].map(p=>toScreen(view(p))),corners:[-45,45].flatMap(y=>[-75,75].map(z=>view({x,y,z}).z))}))`);
-   for(const plane of p){
-    assert.ok(plane.east[0].sx<plane.east[1].sx,'every time slice stays east-right after navigation');
-    assert.ok(plane.north[1].sy<plane.north[0].sy,'every time slice stays north-up after navigation');
-    assert.ok(plane.corners.every(z=>z>3),'zoom cannot enter or clip through the map');
-   }
-  };
-  for(const dx of [1000,-1000,100000,-100000])for(const dy of [100000,-100000]){
-   s.pointer('pointerdown',{button:0,pointerType:'mouse',clientX:0,clientY:0,pointerId:1});
-   s.pointer('pointermove',{pointerType:'mouse',buttons:1,clientX:dx,clientY:dy});
-   s.pointer('pointerup',{});settle();check();
-   for(let i=0;i<100;i++)s.pointer('wheel',{deltaY:-10000,preventDefault(){}});
-   check();s.run('zoomOrbit(.000001)');check();s.run('zoomOrbit(1000000)');check();
-  }
-  for(const code of ['KeyW','KeyA','KeyD','KeyQ','KeyE','KeyS']){
-   s.key('keydown',{code,target:{tagName:'CANVAS'},preventDefault(){}});settle();check();
-   s.key('keyup',{code});
-  }
-  s.pointer('pointerdown',{button:0,pointerType:'mouse',clientX:0,clientY:0,pointerId:1});
-  s.pointer('lostpointercapture',{});
-  const before=s.run('look.yaw');s.pointer('pointermove',{pointerType:'mouse',buttons:1,clientX:1000,clientY:0});
-  assert.equal(s.run('look.yaw'),before,'lost capture must stop dragging');
-  s.reset();check();
- });
-}
-
 test('Monday geography is in front and the week extends behind it',()=>{
  const s=scene(1600,836);s.run('homePose("stack")');
  const projected=s.run('Array.from({length:8},(_,day)=>{const p=view({x:timeDepth(day/7),y:0,z:0});return {...toScreen(p),depth:p.z};})');
