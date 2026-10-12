@@ -38,7 +38,8 @@ const dayPass=d=>state.hoverDay?d===state.hoverDay:!state.days.size||state.days.
 function geo(lon,lat){const b=D.bounds[state.extent];return{x:(lon-b[0])/(b[2]-b[0]),z:(lat-b[1])/(b[3]-b[1])};}
 function metricSetup(){const b=D.bounds[state.extent],c=utm11((b[0]+b[2])/2,(b[1]+b[3])/2),corners=[[b[0],b[1]],[b[2],b[1]],[b[0],b[3]],[b[2],b[3]]].map(p=>utm11(...p));const west=Math.min(...corners.map(p=>p.e)),east=Math.max(...corners.map(p=>p.e)),south=Math.min(...corners.map(p=>p.n)),north=Math.max(...corners.map(p=>p.n));metric={centre:c,scale:150/(east-west),west:Math.floor(west/5000)*5000,east:Math.ceil(east/5000)*5000,south:Math.floor(south/5000)*5000,north:Math.ceil(north/5000)*5000};zScale=(north-south)*metric.scale;}
 function metrePoint(e,n,x=0){return{x,y:(n-metric.centre.n)*metric.scale,z:(e-metric.centre.e)*metric.scale};}
-function world(p){const b=D.bounds[state.extent],g=utm11(b[0]+p.z*(b[2]-b[0]),b[1]+p.y*(b[3]-b[1]));return metrePoint(g.e,g.n,state.mode==='map'?0:(p.x-.5)*heightScale);}
+function timeDepth(t){return(.5-t)*heightScale;}
+function world(p){const b=D.bounds[state.extent],g=utm11(b[0]+p.z*(b[2]-b[0]),b[1]+p.y*(b[3]-b[1]));return metrePoint(g.e,g.n,state.mode==='map'?0:timeDepth(p.x));}
 function mapPoint(coords,t=0){const g=coords?geo(...coords):{x:.5,z:.5};return world({x:t,y:g.z,z:g.x});}
 function reproject(){
  metricSetup();
@@ -96,17 +97,17 @@ function homePose(mode=state.mode,enter=false){
   if(state.frame==='events'){const physical=points.filter(p=>p.e.coords),ys=physical.map(p=>p.anchor.y).sort((a,b)=>a-b),zs=physical.map(p=>p.anchor.z).sort((a,b)=>a-b),q=(a,t)=>a[Math.floor((a.length-1)*t)];if(physical.length){pts=[{y:q(ys,.02),z:q(zs,.02)},{y:q(ys,.98),z:q(zs,.98)},...anchors.filter(a=>a.place.count>=8&&a.place.coords).map(a=>a.p)];}}
   const ys=pts.map(p=>p.y),zs=pts.map(p=>p.z);mapCentre={y:(Math.max(...ys)+Math.min(...ys))/2,z:(Math.max(...zs)+Math.min(...zs))/2};mapScale=Math.min(cv.width*.78/(Math.max(...zs)-Math.min(...zs)),cv.height*.76/(Math.max(...ys)-Math.min(...ys)));mapBaseScale=mapScale;mapZoom=1;cv.dataset.zoom='1';cv.dataset.framing=state.frame;
  }
- const yaw=mode==='map'?-Math.PI/2:-.92,pitch=mode==='map'?0:-.28;
- const pose=enter?{x:80,y:15,z:-105,yaw:-.6,pitch:-.1}:{x:0,y:0,z:0,yaw,pitch};
- if(!enter){
+ const yaw=mode==='map'?-Math.PI/2:-2.0,pitch=mode==='map'?0:-.2;
+ const pose={x:0,y:0,z:0,yaw,pitch};
+ {
   const shape=bodyRings.flatMap(r=>mode==='map'?r.front:[...r.front,...r.back]);
   const sample=shape.length?shape:[{x:-110,y:-45,z:-75},{x:110,y:45,z:75}];
   const apply=d=>Object.assign(cam,{...pose,x:-Math.sin(yaw)*Math.cos(pitch)*d,y:-Math.sin(pitch)*d,z:-Math.cos(yaw)*Math.cos(pitch)*d});
   let low=115,high=1800;
-  for(let i=0;i<24;i++){const d=(low+high)/2;apply(d);const views=sample.map(view),ss=views.map(toScreen),xs=ss.map(p=>p.sx),ys=ss.map(p=>p.sy);const fits=views.every(v=>v.z>=8)&&Math.max(...xs)-Math.min(...xs)<cv.width*.80&&Math.max(...ys)-Math.min(...ys)<cv.height*.65;if(fits)high=d;else low=d;}
-  apply(high);const ss=sample.map(p=>toScreen(view(p))),xs=ss.map(p=>p.sx),ys=ss.map(p=>p.sy);frameOffset={x:cv.width/2-(Math.max(...xs)+Math.min(...xs))/2,y:cv.height*.5-(Math.max(...ys)+Math.min(...ys))/2};Object.assign(pose,{x:cam.x,y:cam.y,z:cam.z});
+  for(let i=0;i<24;i++){const d=(low+high)/2;apply(d);const views=sample.map(view),ss=views.map(toScreen),xs=ss.map(p=>p.sx),ys=ss.map(p=>p.sy);const fits=views.every(v=>v.z>=8)&&Math.max(...xs)-Math.min(...xs)<cv.width*.80&&Math.max(...ys)-Math.min(...ys)<cv.height*.58;if(fits)high=d;else low=d;}
+  apply(high);const ss=sample.map(p=>toScreen(view(p))),xs=ss.map(p=>p.sx),ys=ss.map(p=>p.sy);frameOffset={x:cv.width/2-(Math.max(...xs)+Math.min(...xs))/2,y:cv.height*.43-(Math.max(...ys)+Math.min(...ys))/2};Object.assign(pose,{x:cam.x,y:cam.y,z:cam.z});
  }
- Object.assign(HOME,pose);Object.assign(cam,pose);look.yaw=pose.yaw;look.pitch=pose.pitch;vel.x=vel.y=vel.z=0;wheelImpulse=0;
+ Object.assign(HOME,pose);Object.assign(cam,pose);look.yaw=pose.yaw;look.pitch=pose.pitch;setOrbitHome(bodyRings.flatMap(r=>[...r.front,...r.back]));
 }
 function watchLabel(){const h=watchCursor??0;return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][Math.floor(h/24)]+' '+String(h%24).padStart(2,'0')+':00';}
 function updateWatch(){document.querySelectorAll('.day').forEach(el=>el.classList.toggle('active-time',watchCursor!==null&&el.dataset.day===D.days[Math.floor(watchCursor/24)])); $('watch-week').textContent=watching?'Ⅱ Pause · '+watchLabel():watchCursor!==null&&watchCursor<167?'▶ Resume · '+watchLabel():'▶ Watch week';$('watch-week').setAttribute('aria-pressed',String(watching));}
@@ -133,7 +134,7 @@ $('play-week').onclick=()=>{if(playTimer!==null){stopPlayback();return;}chooseHo
 addEventListener('blur',stopPlayback);
 new ResizeObserver(()=>{if(!document.body.classList.contains('immersive'))homePose();}).observe(cv);
 
-function mode(m){if(m==='map'){if(watchCursor!==null){state.hours.clear();state.hoverHour=null;}stopPlayback();watchCursor=null;updateWatch();}$('c').setAttribute('aria-label',m==='map'?'LA event map. Scroll to zoom, drag to pan. Dot size shows prominence. Click for details.':'LA events across 168 hours in 3D. Drag to look, scroll to fly, WASD to move. Dot size shows prominence. Back to 2D restores the map.');$('view-toggle').textContent=m==='map'?'Explore 3D ↗':'Back to 2D';$('view-toggle').setAttribute('aria-pressed',String(m==='stack'));document.querySelector('.map-hint').textContent=m==='map'?'Scroll to zoom · Drag to pan':'Drag to look · Scroll to fly · WASD move';document.querySelector('.scene').dataset.view=m;if(m==='map'){document.body.classList.remove('immersive');$('enter').textContent='Enter field ↗';}state.mode=m;cameraLocked=m==='map';cv.classList.toggle('fixed-map',cameraLocked);$('c').dataset.camera=cameraLocked?'fixed-north-up':'free-flight';document.querySelector('.navigation span').textContent=cameraLocked?'FIXED MAP · Hover dots to inspect · Click for details · Scrub time above':'DRAG look · WASD move · WHEEL glide · SPACE / SHIFT rise / sink · R home · F enter';document.querySelector('.axes').innerHTML=m==='map'?'<span>2D · FIXED NORTH-UP MAP</span><span>↑ NORTH</span>':'<span>↔ X · TIME / 168 HOURS</span><span>Y · NORTH / KM</span><span>Z · EAST / KM</span>';document.querySelector('.scene-caption').innerHTML=m==='map'?'<span class="gold">✦</span> Featured = golden halo<br>All events · filter by time above<br>Fixed geography · click a dot for its event':'<span class="gold">✦</span> Featured = golden halo<br>One city, extruded through one week<br>Drag to explore · click a dot for its event';$('stack-view').setAttribute('aria-pressed',String(m==='stack'));$('map-view').setAttribute('aria-pressed',String(m==='map'));reproject();homePose();}
+function mode(m){if(m==='map'){if(watchCursor!==null){state.hours.clear();state.hoverHour=null;}stopPlayback();watchCursor=null;updateWatch();}$('c').setAttribute('aria-label',m==='map'?'LA event map. Scroll to zoom, drag to pan. Dot size shows prominence. Click for details.':'LA events across 168 hours in 3D. Drag to orbit, scroll to zoom. Dot size shows prominence. Back to 2D restores the map.');$('view-toggle').textContent=m==='map'?'Explore 3D ↗':'Back to 2D';$('view-toggle').setAttribute('aria-pressed',String(m==='stack'));document.querySelector('.map-hint').textContent=m==='map'?'Scroll to zoom · Drag to pan':'Drag to orbit · Scroll to zoom · WASD move';document.querySelector('.scene').dataset.view=m;if(m==='map'){document.body.classList.remove('immersive');$('enter').textContent='Enter field ↗';}state.mode=m;cameraLocked=m==='map';cv.classList.toggle('fixed-map',cameraLocked);$('c').dataset.camera=cameraLocked?'fixed-north-up':'front-orbit';document.querySelector('.navigation span').textContent=cameraLocked?'FIXED MAP · Hover dots to inspect · Click for details · Scrub time above':'DRAG orbit · W / S zoom · A / D orbit · Q / E tilt · R home';document.querySelector('.axes').innerHTML=m==='map'?'<span>2D · FIXED NORTH-UP MAP</span><span>↑ NORTH</span>':'<span>↔ X · TIME / 168 HOURS</span><span>Y · NORTH / KM</span><span>Z · EAST / KM</span>';document.querySelector('.scene-caption').innerHTML=m==='map'?'<span class="gold">✦</span> Featured = golden halo<br>All events · filter by time above<br>Fixed geography · click a dot for its event':'<span class="gold">✦</span> Featured = golden halo<br>One city, extruded through one week<br>Drag to orbit · click a dot for its event';$('stack-view').setAttribute('aria-pressed',String(m==='stack'));$('map-view').setAttribute('aria-pressed',String(m==='map'));reproject();homePose();}
 function immersive(){document.body.classList.toggle('immersive');$('enter').textContent=document.body.classList.contains('immersive')?'Exit field ↙':'Enter field ↗';if(document.body.classList.contains('immersive')){mode('stack');homePose('stack',true);cv.focus();}else homePose();}
 $('bands').innerHTML=[4,3,2,1,0].map(i=>`<button class="band" style="--color:${pointColor((i+.5)/5)}" data-band="${i}" aria-pressed="false" title="${BANDS[i].range}"><span class="dot"></span>${BANDS[i].name}<small>${BANDS[i].range.replace('score','s')}</small></button>`).join('');
 $('bands').querySelectorAll('button').forEach(el=>{const b=+el.dataset.band;el.onclick=()=>{const selected=state.bands.has(b);state.bands.clear();if(!selected)state.bands.add(b);refresh();};el.onpointerenter=()=>{state.hoverBand=b;refresh();};el.onpointerleave=()=>{state.hoverBand=null;refresh();};el.onfocus=()=>{state.hoverBand=b;refresh();};el.onblur=()=>{state.hoverBand=null;refresh();};});
@@ -231,7 +232,7 @@ function drawLocalLabels(){
  ctx.fillStyle='#586e80';ctx.font=`${11*dpr}px -apple-system,sans-serif`;const ocean=screen(mapPoint([-118.65,33.95]));if(ocean&&ocean.sx>70*dpr&&ocean.sx<cv.width-150*dpr&&ocean.sy>150*dpr&&ocean.sy<cv.height-160*dpr)ctx.fillText('P A C I F I C   O C E A N',ocean.sx,ocean.sy);
 }
 function drawMetricGrid(){
- const dpr=devicePixelRatio,front=state.mode==='map'?0:-heightScale/2,back=heightScale/2;
+ const dpr=devicePixelRatio,front=state.mode==='map'?0:timeDepth(0),back=timeDepth(1);
  const stroke=(a,b,major)=>drawPath([a,b],major?'#70808a33':'#56636d1c',major?.6:.4,false);
  for(let e=metric.west;e<=metric.east;e+=5000){const km=(e-metric.west)/1000,major=km%10===0;stroke(metrePoint(e,metric.south,front),metrePoint(e,metric.north,front),major);if(state.mode==='stack'){stroke(metrePoint(e,metric.south,back),metrePoint(e,metric.north,back),major);if(major)stroke(metrePoint(e,metric.south,front),metrePoint(e,metric.south,back),false);}else{const s=screen(metrePoint(e,metric.south));if(s&&s.sx>45*dpr&&s.sx<cv.width-45*dpr&&((5000*metric.scale*mapScale)>32*dpr||major)){ctx.fillStyle='#82919e';ctx.font=`${9*dpr}px ui-monospace,monospace`;ctx.fillText(km+' km',s.sx+4*dpr,cv.height-(cv.clientWidth<620?88:104)*dpr);}}}
  for(let n=metric.south;n<=metric.north;n+=5000){const km=(n-metric.south)/1000,major=km%10===0;stroke(metrePoint(metric.west,n,front),metrePoint(metric.east,n,front),major);if(state.mode==='stack')stroke(metrePoint(metric.west,n,back),metrePoint(metric.east,n,back),major);else{const s=screen(metrePoint(metric.west,n));if(s&&s.sy>110*dpr&&s.sy<cv.height-180*dpr&&((5000*metric.scale*mapScale)>32*dpr||major)){ctx.fillStyle='#82919e';ctx.font=`${9*dpr}px ui-monospace,monospace`;ctx.fillText(km+' km',12*dpr,s.sy-4*dpr);}}}
@@ -250,16 +251,16 @@ function paint(t){requestAnimationFrame(paint);step(t);if(t-lastPaint<30)return;
  for(const l of lines)drawPath(l.front,l.name===picked?'#c0a367':'#34434e66',l.name===picked?1.1:.2);
  drawBasemap();
  if(state.mode==='stack'){
-  const P=h=>({x:(h/168-.5)*heightScale,y:zScale/2+18,z:-82});drawPath([P(0),P(168)],'#9a8557',1,false);
+  const P=h=>({x:timeDepth(h/168),y:zScale/2+18,z:-82});drawPath([P(0),P(168)],'#9a8557',1,false);
   for(let h=0;h<=168;h++){const p=P(h);drawPath([p,{...p,y:p.y-(h%24===0?5:h%6===0?3:1.5)}],h%24===0?'#bea575':'#526170',.65,false);if(h%24===0&&h<168&&(cv.clientWidth>=620||h%48===0)){const s=screen({...p,y:p.y-10});if(s){ctx.fillStyle='#b8aa8f';ctx.font=`${9*dpr}px ui-monospace,monospace`;ctx.fillText(cv.clientWidth<620?(h===168?'End':['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][h/24]):h===168?'Mon 19 · 00h':['Mon 12','Tue 13','Wed 14','Thu 15','Fri 16','Sat 17','Sun 18'][h/24]+' · '+h+'h',s.sx,s.sy+(h/24%3)*14*dpr);}}}
   const chosenHours=state.hoverHour!==null?[state.hoverHour]:[...state.hours];const sweep=watching?(watchCursor??0)+Math.min(.99,(Date.now()-watchTickAt)/WATCH_STEP):null;const ranges=sweep!==null?[[sweep,sweep+.3]]:chosenHours.length?chosenHours.map(h=>[h,h+1]):(state.hoverDay?[state.hoverDay]:[...state.days]).map(d=>{const h=D.days.indexOf(d)*24;return[h,h+24];});
-  for(const [h,end] of ranges)for(const l of bodyRings){for(const time of [h,end]){const x=(time/168-.5)*heightScale;const slice=l.front.map(p=>({...p,x}));const ss=slice.map(screen);if(ss.every(Boolean)){ctx.beginPath();ss.forEach((p,i)=>i?ctx.lineTo(p.sx,p.sy):ctx.moveTo(p.sx,p.sy));ctx.closePath();ctx.fillStyle=watching?'#efc87924':'#efc87918';ctx.fill();}drawPath(slice,watching?'#ffdf91':'#edca83',watching?1.6:1);}}
+  for(const [h,end] of ranges)for(const l of bodyRings){for(const time of [h,end]){const x=timeDepth(time/168);const slice=l.front.map(p=>({...p,x}));const ss=slice.map(screen);if(ss.every(Boolean)){ctx.beginPath();ss.forEach((p,i)=>i?ctx.lineTo(p.sx,p.sy):ctx.moveTo(p.sx,p.sy));ctx.closePath();ctx.fillStyle=watching?'#efc87924':'#efc87918';ctx.fill();}drawPath(slice,watching?'#ffdf91':'#edca83',watching?1.6:1);}}
  }
  for(const a of anchors){if(a.place.name==='Unknown')continue;const s=screen(a.p);if(!s)continue;ctx.fillStyle='#607381';ctx.fillRect(s.sx-dpr,s.sy-dpr,2*dpr,2*dpr);}
  const drawn=[];for(const p of points){const s=eventScreen(p);if(s)drawn.push({p,s,active:visible.has(p.e.id)});}
  drawn.sort((a,b)=>state.mode==='map'?prominence(a.p.e).score-prominence(b.p.e).score:b.s.depth-a.s.depth);hoverPoint=null;let best=13*dpr;
  for(const {p,s,active} of drawn){const r=eventRadius(p,s);ctx.globalAlpha=active?1:.035;ctx.fillStyle=p.e.municipality==='Unknown'?'#9ba4ac':pointColor(p.e.ai.score);
-  if(state.mode==='stack'&&active&&(state.detail===p.e.id||hoverPoint?.e?.id===p.e.id)){const end={...p,x:(p.t.end/168-.5)*heightScale};drawPath([p,end],p.e.municipality==='Unknown'?'#9ba4ac44':pointColor(p.e.ai.score)+'44',.7,false);}
+  if(state.mode==='stack'&&active&&(state.detail===p.e.id||hoverPoint?.e?.id===p.e.id)){const end={...p,x:timeDepth(p.t.end/168)};drawPath([p,end],p.e.municipality==='Unknown'?'#9ba4ac44':pointColor(p.e.ai.score)+'44',.7,false);}
   ctx.shadowBlur=active?(state.mode==='map'&&!p.e.geocode?(p.e.featured?2:0):p.e.featured?9:3)*dpr:0;ctx.shadowColor=ctx.fillStyle;ctx.beginPath();ctx.arc(s.sx,s.sy,r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;if(active&&!dragging&&mouseX>=0){const dist=Math.hypot(s.sx-mouseX,s.sy-mouseY);if(dist<best&&dist<(state.mode==='map'&&!p.e.geocode?5:13)*dpr){best=dist;hoverPoint={...p,s};}}
  }
  ctx.globalAlpha=1;
@@ -287,7 +288,7 @@ window.fieldHost={
  filter(ids){window.fieldAllowed=new Set(ids);refresh();},
  saved(ids){window.fieldSaved=new Set(ids);},
  select(id){state.detail=id;},
- view(m){mode(m);},home(){homePose();},zoom(dir){if(state.mode==='map')zoomMap(dir>0?1.3:1/1.3);else{cam.x+=Math.sin(cam.yaw)*dir*25;cam.z+=Math.cos(cam.yaw)*dir*25;}},
+ view(m){mode(m);},home(){homePose();},zoom(dir){if(state.mode==='map')zoomMap(dir>0?1.3:1/1.3);else zoomOrbit(dir>0?1/1.2:1.2);},
  days(days){stopPlayback();watchCursor=null;updateWatch();state.days=new Set(days);state.hours.clear();state.hoverDay=state.hoverHour=null;refresh();},
  day(day){stopPlayback();watchCursor=null;updateWatch();state.days.clear();state.hours.clear();if(day)state.days.add(day);refresh();},
  hour(h){chooseHour(h);},clearHour(){state.hours.clear();stopPlayback();watchCursor=null;refresh();},
