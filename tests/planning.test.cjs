@@ -28,3 +28,13 @@ test('elsewhere retains published places and unlisted events separately from vir
  const plans=R.search(es,{days:['2026-10-13'],municipality:'__elsewhere'});
  a.equal(plans.eligible,1);a.equal(plans.routes[0].area,'Port Hueneme');
 });
+
+test('application/RSVP checkbox uses explicit access and composes with day, closed and builder filters',()=>{
+ const es=[event('apply',9,{access:'APPLY'}),event('rsvp',11,{access:'RSVP'}),event('unspecified',13,{access:'unknown'}),event('host',15,{access:'Check host'}),event('missing',17),event('closed',19,{access:'APPLY',registration:'closed'})];
+ a.equal(B.filter(es).length,6);
+ a.deepEqual(B.filter(es,{days:['2026-10-13'],requireAccess:true}).map(e=>e.id),['apply','rsvp','closed']);
+ a.deepEqual(B.filter(es,{requireAccess:true,hideClosed:true}).map(e=>e.id),['apply','rsvp']);
+ a.equal(B.dayCounts(es,{requireAccess:true})[1],3);
+ const r=R.search(es,{days:['2026-10-13'],requireAccess:true,buffer:0});a.equal(r.eligible,2);a.deepEqual(r.routes[0].events.map(e=>e.id),['apply','rsvp']);
+ a.equal(R.search(es,{days:['2026-10-13'],buffer:0}).eligible,5);
+});

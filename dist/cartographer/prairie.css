@@ -27,3 +27,5 @@ body{background:var(--paper)}h1,h2,.wordmark{font-family:'Bebas Neue',sans-serif
 @media print{.cartographer-tool .mast,.cartographer-tool .explorer,.cartographer-tool .route-studio{display:none!important}}
 
 @media screen{.cartographer-tool .route-clock{color:#b8c4c6}.cartographer-tool .route-card li:before{color:#17212a}.cartographer-tool .route-days label{flex-direction:row!important}.cartographer-tool .route-day-field{margin:0 0 10px}}
+
+@media screen{.cartographer-tool .result-bar{flex-wrap:wrap}.cartographer-tool .result-bar .access-filter{flex-basis:100%;order:2;gap:5px;margin-top:4px}}
