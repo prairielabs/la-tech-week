@@ -7,7 +7,7 @@ An event browser and an optional Semantic Field Cartographer view of LA Tech Wee
 
 Choose one day at a time, search individual event descriptions, sort events, filter municipalities, LA neighborhoods and places listed elsewhere, or find approximate locations near a US ZIP. Save a week locally, inspect conflicts, export a tentative calendar or share a plan. The builder compares three possibilities for your selected day with adjustable spacing and no fixed stop-count cap.
 
-Events without a listed municipality remain accessible under Elsewhere; structured published address localities appear by name. Virtual events are separate. The 3D Cartographer lives only on its linked subpage. Unknown map coordinates remain unknown.
+Events without a listed municipality remain accessible under Elsewhere; structured published address localities appear by name. Virtual events are separate. The 3D Cartographer lives on its own full-screen page with overlaid event controls, a day/time dock and a collapsible event list. A persistent Events / 3D Cartographer switch connects both views. Unknown map coordinates remain unknown.
 
 ## Run
 
