@@ -11,3 +11,20 @@ test('flexible gaps vary by published location; no inferred venue',()=>{const x=
 test('builder excludes unknown ends, closed and multi-day listings',()=>{const es=[event('good'),event('unknown',11,{endsAt:null}),event('closed',12,{registration:'closed'}),event('multi',14,{endDate:'2026-10-14'})];const r=R.search(es,{days:['2026-10-13']});a.equal(r.eligible,1);a.deepEqual(r.routes[0].events.map(e=>e.id),['good']);});
 test('builder respects nonconsecutive days, windows, municipality and every gap',()=>{const es=Array.from({length:8},(_,i)=>event('e'+i,8+i));for(const buffer of ['flexible',0,15,30,60,90]){const r=R.search(es,{days:['2026-10-13','2026-10-15'],from:9,to:15,buffer,municipality:'Los Angeles'});for(const p of r.routes){a.equal(new Set(p.events.map(e=>e.id)).size,p.events.length);for(let i=0;i<p.events.length;i++){const e=p.events[i];a.ok(Date.parse(e.startsAt)>=Date.parse('2026-10-13T09:00:00-07:00'));a.ok(Date.parse(e.endsAt)<=Date.parse('2026-10-13T15:00:00-07:00'));if(i)a.ok(Date.parse(e.startsAt)-Date.parse(p.events[i-1].endsAt)>=R.gap(p.events[i-1],e,buffer)*60000);}}}});
 test('ICS preserves unknown duration and escapes commas and newlines',()=>{const text=C.ics([event('x',9,{endsAt:null,name:'A,B\nC'})]);a.ok(text.includes('SUMMARY:A\\,B\\nC'));a.ok(!text.includes('DTEND:'));a.ok(text.includes('STATUS:TENTATIVE'));});
+
+test('elsewhere retains published places and unlisted events separately from virtual',()=>{
+ const out=event('out',9,{municipality:'Unknown',areas:['Other'],publicAddress:['1 Test Road','Port Hueneme, CA'],coords:null});
+ const pending=event('pending',11,{municipality:'Unknown',areas:['Other'],publicAddress:[],coords:null});
+ const online=event('online',13,{municipality:'Unknown',areas:['Virtual (LA)'],publicAddress:['Los Angeles, CA'],coords:null});
+ const es=[out,pending,online,event('local')];
+ a.equal(B.label(out),'Port Hueneme');a.equal(B.distance(out,[-118,34]),null);
+ a.deepEqual(B.filter(es,{municipality:'__elsewhere'}).map(e=>e.id),['out','pending']);
+ a.deepEqual(B.filter(es,{municipality:'__virtual'}).map(e=>e.id),['online']);
+ a.deepEqual(B.filter(es,{municipality:'Port Hueneme'}).map(e=>e.id),['out']);
+ a.deepEqual(B.filter(es,{query:'Port Hueneme'}).map(e=>e.id),['out']);
+ a.equal(B.filter(es).length,4);
+ a.ok(B.placeGroups(es).find(g=>g.label==='Elsewhere / other places').options.some(o=>o.value==='Port Hueneme'));
+ a.equal(B.publishedPlace({...out,publicAddress:['Venue announced later']}),'');
+ const plans=R.search(es,{days:['2026-10-13'],municipality:'__elsewhere'});
+ a.equal(plans.eligible,1);a.equal(plans.routes[0].area,'Port Hueneme');
+});

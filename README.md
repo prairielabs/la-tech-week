@@ -5,7 +5,9 @@ An event browser and an optional Semantic Field Cartographer view of LA Tech Wee
 - [Browse events](https://prairielabs.ai/latechweek)
 - [Explore Cartographer](https://prairielabs.ai/latechweek/cartographer)
 
-Choose one day at a time, search individual event descriptions, sort events, filter municipalities and LA neighborhoods, or find approximate locations near a US ZIP. Save a week locally, inspect conflicts, export a tentative calendar or share a plan. The builder compares three possibilities for your selected day with adjustable spacing and no fixed stop-count cap.
+Choose one day at a time, search individual event descriptions, sort events, filter municipalities, LA neighborhoods and places listed elsewhere, or find approximate locations near a US ZIP. Save a week locally, inspect conflicts, export a tentative calendar or share a plan. The builder compares three possibilities for your selected day with adjustable spacing and no fixed stop-count cap.
+
+Events without a listed municipality remain accessible under Elsewhere; structured published address localities appear by name. Virtual events are separate. The 3D Cartographer lives only on its linked subpage. Unknown map coordinates remain unknown.
 
 ## Run
 

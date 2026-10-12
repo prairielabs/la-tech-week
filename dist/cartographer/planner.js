@@ -1,21 +1,21 @@
 'use strict';
 (()=>{
-const Q=id=>document.getElementById(id),C=PlannerCore,all=LA_DATA.events,by=new Map(all.map(e=>[e.id,e])),days=LA_DATA.days;
+const Q=id=>document.getElementById(id),C=PlannerCore,B=BrowseCore,all=LA_DATA.events,by=new Map(all.map(e=>[e.id,e])),days=LA_DATA.days;
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const url=s=>/^https?:\/\//i.test(s||'')?safe(s):'#';
 const clock=s=>s?new Date(s).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Los_Angeles'}):'End unknown';
 const dayname=d=>new Date(d+'T12:00:00-07:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'America/Los_Angeles'});
-const area=e=>e.areas.filter(a=>a!=='Other').join(' / ')||(e.municipality==='Unknown'?'Location to be confirmed':e.municipality);
+const area=e=>B.label(e)+(B.isLA(e)&&B.neighborhoods(e).length?' / '+B.neighborhoods(e).join(' / '):'');
 let selectedDays=new Set([days[0]]);
 let saved=new Set(),tab='discover',day=days[0],preset='all',limit=35,anchor=null,fieldPlan=false,chosen=null,timer=null,restored=false,lastHour=null,draft=null,draftVariant=0;
 try{const a=JSON.parse(localStorage.getItem('fieldtrip-la-2026')||'[]');if(Array.isArray(a))saved=new Set(a.filter(id=>by.has(id)));}catch{}
-const corpus=new Map(all.map(e=>[e.id,[e.name,...e.hosts,...e.themes,...e.formats,...e.areas,e.description].join(' ').toLowerCase()]));
+const corpus=new Map(all.map(e=>[e.id,[e.name,...e.hosts,...e.themes,...e.formats,...e.areas,...(e.publicAddress||[]),B.label(e),e.description].join(' ').toLowerCase()]));
 const presets={all:()=>true,build:e=>e.formats.some(t=>/workshop|hackathon|demo/i.test(t))||e.themes.some(t=>/developer|infrastructure|deep tech/i.test(t)),capital:e=>e.themes.includes('Fundraising / Investing'),creative:e=>e.themes.some(t=>/creator|entertainment|design|gaming/i.test(t)),social:e=>e.formats.some(t=>/happy hour|party|networking/i.test(t))};
 function toast(s){Q('toast').textContent=s;Q('toast').hidden=false;clearTimeout(timer);timer=setTimeout(()=>Q('toast').hidden=true,3500);}
 function setOptions(id,values){Q(id).insertAdjacentHTML('beforeend',[...new Set(values)].sort().map(t=>`<option value="${safe(t)}">${safe(t)}</option>`).join(''));}
-setOptions('topic-filter',all.flatMap(e=>e.themes));setOptions('place-filter',all.map(e=>e.municipality));setOptions('format-filter',all.flatMap(e=>e.formats));
+setOptions('topic-filter',all.flatMap(e=>e.themes));Q('place-filter').innerHTML='<option value="">All places</option>'+B.placeGroups(all).map(g=>`<optgroup label="${safe(g.label)}">${g.options.map(o=>`<option value="${safe(o.value)}">${safe(o.label)}</option>`).join('')}</optgroup>`).join('');setOptions('format-filter',all.flatMap(e=>e.formats));
 function matching(ignoreDay=false,ignoreHour=false){const hour=fieldHost.get().hour;const query=Q('query').value.toLowerCase().trim().split(/\s+/).filter(Boolean),topic=Q('topic-filter').value,place=Q('place-filter').value,format=Q('format-filter').value;
-let rows=all.filter(e=>(ignoreHour||hour===null||C.activeHour(e,hour))&&(ignoreDay||[...selectedDays].some(d=>C.activeDay(e,d)))&&presets[preset](e)&&(!topic||e.themes.includes(topic))&&(!place||e.municipality===place)&&(!format||e.formats.includes(format))&&(!Q('hide-closed').checked||e.registration!=='closed')&&query.every(t=>corpus.get(e.id).includes(t)));
+let rows=all.filter(e=>(ignoreHour||hour===null||C.activeHour(e,hour))&&(ignoreDay||[...selectedDays].some(d=>C.activeDay(e,d)))&&presets[preset](e)&&(!topic||e.themes.includes(topic))&&B.matchesPlace(e,place)&&(!format||e.formats.includes(format))&&(!Q('hide-closed').checked||e.registration!=='closed')&&query.every(t=>corpus.get(e.id).includes(t)));
 if(anchor){const fits=C.nextFit(by.get(anchor),rows);rows=fits.map(x=>x.e);}else{const sort=Q('sort-filter').value;rows.sort((a,b)=>sort==='name'?a.name.localeCompare(b.name):sort==='featured'?Number(b.featured)-Number(a.featured)||C.start(a)-C.start(b):C.start(a)-C.start(b)||a.name.localeCompare(b.name));}return rows;}
 function row(e,plan=false){return `<article class="event-row" data-row="${safe(e.id)}"><button class="event-open" data-open="${safe(e.id)}"><span class="when">${safe(dayname(e.date))} · ${safe(clock(e.startsAt))}${e.featured?' · ✦ FEATURED':''}</span><strong>${safe(e.name)}</strong><span class="where">${safe(area(e))} · ${safe(e.hosts.join(' / '))}</span><span class="tagline">${e.registration==='closed'?'Registration closed':C.multi(e)?'Multiple days · check individual sessions':e.access==='APPLY'?'Application required':safe(e.formats[0]||'Event')}${!e.endsAt?' · End time not published':''}</span></button><button class="save ${saved.has(e.id)?'saved':''}" data-save="${safe(e.id)}" aria-label="${saved.has(e.id)?'Remove':'Save'} ${safe(e.name)}" aria-pressed="${saved.has(e.id)}">${saved.has(e.id)?'✓':'+'}</button>${plan?`<div style="grid-column:1/-1"><a class="print-only" href="${url(e.partiful||e.official)}">${safe(e.partiful||e.official)}</a></div>`:''}</article>`;}
 function paintWeek(){const candidates=fieldPlan?[...saved].map(id=>by.get(id)):matching(true,true);
