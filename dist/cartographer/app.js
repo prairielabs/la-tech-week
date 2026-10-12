@@ -96,8 +96,8 @@ function homePose(mode=state.mode,enter=false){
   if(state.frame==='events'){const physical=points.filter(p=>p.e.coords),ys=physical.map(p=>p.anchor.y).sort((a,b)=>a-b),zs=physical.map(p=>p.anchor.z).sort((a,b)=>a-b),q=(a,t)=>a[Math.floor((a.length-1)*t)];if(physical.length){pts=[{y:q(ys,.02),z:q(zs,.02)},{y:q(ys,.98),z:q(zs,.98)},...anchors.filter(a=>a.place.count>=8&&a.place.coords).map(a=>a.p)];}}
   const ys=pts.map(p=>p.y),zs=pts.map(p=>p.z);mapCentre={y:(Math.max(...ys)+Math.min(...ys))/2,z:(Math.max(...zs)+Math.min(...zs))/2};mapScale=Math.min(cv.width*.78/(Math.max(...zs)-Math.min(...zs)),cv.height*.76/(Math.max(...ys)-Math.min(...ys)));mapBaseScale=mapScale;mapZoom=1;cv.dataset.zoom='1';cv.dataset.framing=state.frame;
  }
- const yaw=mode==='map'?-Math.PI/2:.92,pitch=mode==='map'?0:-.28;
- const pose=enter?{x:-80,y:15,z:-105,yaw:.6,pitch:-.1}:{x:0,y:0,z:0,yaw,pitch};
+ const yaw=mode==='map'?-Math.PI/2:-.92,pitch=mode==='map'?0:-.28;
+ const pose=enter?{x:80,y:15,z:-105,yaw:-.6,pitch:-.1}:{x:0,y:0,z:0,yaw,pitch};
  if(!enter){
   const shape=bodyRings.flatMap(r=>mode==='map'?r.front:[...r.front,...r.back]);
   const sample=shape.length?shape:[{x:-110,y:-45,z:-75},{x:110,y:45,z:75}];
